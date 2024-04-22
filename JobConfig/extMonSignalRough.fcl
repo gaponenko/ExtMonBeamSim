@@ -89,6 +89,10 @@ outputs:  {
 physics.producers.g4run.physics.physicsListName : "QGSP_BERT"
 
 physics.producers.g4run.SDConfig: { enableSD: [ "virtualdetector" ] TimeVD: { times: [] } }
+physics.producers.g4run.Mu2eG4StackingOnlyCut: {
+   type: notPdgId
+   pars: [ 2212 ]
+}
 physics.producers.g4run.Mu2eG4SteppingOnlyCut: {
    type: inVolume
    pars: [ "PSEnclosureWindow_1" ]
