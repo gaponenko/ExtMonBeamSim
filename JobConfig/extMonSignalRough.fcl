@@ -1,0 +1,104 @@
+#include "Offline/fcl/minimalMessageService.fcl"
+#include "Offline/fcl/standardProducers.fcl"
+#include "Offline/fcl/standardServices.fcl"
+
+process_name : extMonSignalRough
+
+source : { module_type : EmptyEvent  maxEvents : @nil }
+
+services : @local::Services.Sim
+
+physics : {
+
+   producers:  {
+      genCounter: {
+         module_type: GenEventCounter
+      }
+
+      generate: @local::PrimaryProtonGun
+
+      g4run : @local::mu2eg4runDefaultSingleStage
+
+      compressPVPSEMonWin: {
+         module_type: "CompressPhysicalVolumes"
+         hitInputs: []
+         particleInputs: [ "PSEMonWinFilter" ]
+         volumesInput: "g4run"
+      }
+   }
+
+   filters: {
+      g4consistent: {
+         module_type: FilterStatusG4
+         input: "g4run"
+         maxAcceptedStatus: 9  #  status 10 and above means StepPointMCCollection may have non-dereferencable pointers
+      }
+
+      PSEMonWinFilter: {
+         module_type: "FilterG4Out"
+         mainHitInputs: [ "g4run:psemonwin" ]
+         extraHitInputs: [ "g4run:virtualdetector" ]
+         vetoDaughters: []
+      }
+
+   }
+
+   analyzers: {
+
+      genCountLogger: {
+         module_type: GenEventCountReader
+      }
+
+      andrprint: {
+         module_type: SimParticlesPrinter
+         inputCollection: "g4run"
+      }
+   }
+
+   psemonwinpath: [genCounter, generate, g4run, g4consistent, PSEMonWinFilter, compressPVPSEMonWin ]
+   e1: [psemonwinout, genCountLogger]
+
+   trigger_paths  : [psemonwinpath]
+   end_paths      : [e1]
+}
+
+outputs:  {
+   all : {
+      module_type   :   RootOutput
+      fileName      :   "sim.owner.extMonSignalRough-all.ver.seq.root"
+   }
+   psemonwinout : {
+      module_type   :   RootOutput
+      fileName      :   "sim.owner.extMonSignalRough-psemonwin.ver.seq.root"
+      SelectEvents: [ "psemonwinpath" ]
+      outputCommands: [
+         "drop *_*_*_*",
+         "keep art::EventIDs_*_*_*",
+         "keep mu2e::GenParticles_*_*_*",
+         "keep mu2e::GenEventCount_*_*_*",
+         "keep mu2e::StatusG4_*_*_*",
+         "keep *_PSEMonWinFilter_*_*",
+         "keep *_compressPVPSEMonWin_*_*"
+      ]
+   }
+   dump: { module_type: DataProductDump }
+}
+//================================================================
+//physics.producers.g4run.physics.physicsListName : "ShieldingM"
+//physics.producers.g4run.physics.physicsListName : "MinDEDX"
+physics.producers.g4run.physics.physicsListName : "QGSP_BERT"
+
+physics.producers.g4run.SDConfig: { enableSD: [ "virtualdetector" ] TimeVD: { times: [] } }
+physics.producers.g4run.Mu2eG4SteppingOnlyCut: {
+   type: inVolume
+   pars: [ "PSEnclosureWindow_1" ]
+   write: psemonwin
+}
+
+services.TFileService.fileName: "/dev/null"
+
+// allow to use multiple threads
+//physics.producers.g4run.module_type : "Mu2eG4MT"
+
+services.SeedService.baseSeed         :   8
+services.SeedService.maxUniqueEngines :  20
