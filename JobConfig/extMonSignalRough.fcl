@@ -86,7 +86,7 @@ outputs:  {
 //================================================================
 //physics.producers.g4run.physics.physicsListName : "ShieldingM"
 //physics.producers.g4run.physics.physicsListName : "MinDEDX"
-physics.producers.g4run.physics.physicsListName : "QGSP_BERT"
+//physics.producers.g4run.physics.physicsListName : "QGSP_BERT"
 
 physics.producers.g4run.SDConfig: { enableSD: [ "virtualdetector" ] TimeVD: { times: [] } }
 physics.producers.g4run.Mu2eG4StackingOnlyCut: {
