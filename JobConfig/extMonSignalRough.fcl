@@ -94,9 +94,18 @@ physics.producers.g4run.Mu2eG4StackingOnlyCut: {
    pars: [ 2212 ]
 }
 physics.producers.g4run.Mu2eG4SteppingOnlyCut: {
-   type: inVolume
-   pars: [ "PSEnclosureWindow_1" ]
-   write: psemonwin
+   type: union
+   pars: [
+      {
+         type: inVolume
+         pars: [ "PSEnclosureWindow_2" ] # the beam dump window
+      },
+      {
+         type: inVolume
+         pars: [ "PSEnclosureWindow_1" ] # the ExtMon window
+         write: psemonwin
+      }
+   ]
 }
 
 services.TFileService.fileName: "/dev/null"
