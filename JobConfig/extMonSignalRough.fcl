@@ -101,6 +101,10 @@ physics.producers.g4run.Mu2eG4SteppingOnlyCut: {
          pars: [ "PSEnclosureWindow_2" ] # the beam dump window
       },
       {
+         type: kineticEnergy
+         cut: 2200 # Ek=2200 MeV/c2 is p=3000 MeV/c for proton
+      },
+      {
          type: inVolume
          pars: [ "PSEnclosureWindow_1" ] # the ExtMon window
          write: psemonwin
