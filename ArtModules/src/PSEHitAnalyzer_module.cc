@@ -17,6 +17,7 @@
 #include "art_root_io/TFileService.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "TH1.h"
+#include "TH2.h"
 
 #include "Offline/DataProducts/inc/PDGCode.hh"
 #include "Offline/DataProducts/inc/CompressedPDGCode.hh"
@@ -54,6 +55,7 @@ namespace mu2e {
     TH1D *pdgcounts_;
     TH1D *ek1_;
     TH1D *momentum1_;
+    TH2D *hitxy_;
   };
 
   //================================================================
@@ -65,6 +67,7 @@ namespace mu2e {
     , pdgcounts_{compressPDGCodeHisto(tfs_)}
     , ek1_{tfs_->make<TH1D>("ek1", "Proton kinetic energy",170,0.,8500.)}
     , momentum1_{tfs_->make<TH1D>("momentum1", "Proton momentum",200,0.,10000.)}
+    , hitxy_{tfs_->make<TH2D>("hitxy", "Y vs X of StepPointMC",200,0.,0., 200, 0.,0.)}
   {
     serialize(art::SharedResource<art::TFileService>);
   }
@@ -74,6 +77,7 @@ namespace mu2e {
     auto const steps = evt.getValidHandle<StepPointMCCollection>(input_);
     for(const auto& step: *steps) {
       pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
+      hitxy_->Fill(step.position().x(), step.position().y());
 
       const double p = step.momentum().mag();
       momentum1_->Fill(p);
