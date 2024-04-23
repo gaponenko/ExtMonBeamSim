@@ -65,11 +65,11 @@ physics : {
 outputs:  {
    all : {
       module_type   :   RootOutput
-      fileName      :   "sim.owner.extMonSignalRough-all.ver.seq.root"
+      fileName      :   "sim.owner.extMonSignalRough-all.ver.seq.art"
    }
    psemonwinout : {
       module_type   :   RootOutput
-      fileName      :   "sim.owner.extMonSignalRough-psemonwin.ver.seq.root"
+      fileName      :   "sim.owner.extMonSignalRough-psemonwin.ver.seq.art"
       SelectEvents: [ "psemonwinpath" ]
       outputCommands: [
          "drop *_*_*_*",
