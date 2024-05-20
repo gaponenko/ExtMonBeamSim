@@ -56,6 +56,8 @@ namespace mu2e {
     TH1D *ek1_;
     TH1D *momentum1_;
     TH2D *hitxy_;
+    TH2D *hitzy_;
+    TH2D *hitzx_;
   };
 
   //================================================================
@@ -68,6 +70,8 @@ namespace mu2e {
     , ek1_{tfs_->make<TH1D>("ek1", "Proton kinetic energy",170,0.,8500.)}
     , momentum1_{tfs_->make<TH1D>("momentum1", "Particle momentum",200,0.,10000.)}
     , hitxy_{tfs_->make<TH2D>("hitxy", "Y vs X of StepPointMC",200,0.,0., 200, 0.,0.)}
+    , hitzy_{tfs_->make<TH2D>("hitzy", "Y vs Z of StepPointMC",200,0.,0., 200, 0.,0.)}
+    , hitzx_{tfs_->make<TH2D>("hitzx", "X vs Z of StepPointMC",200,0.,0., 200, 0.,0.)}
   {
     serialize(art::SharedResource<art::TFileService>);
   }
@@ -78,6 +82,8 @@ namespace mu2e {
     for(const auto& step: *steps) {
       pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
       hitxy_->Fill(step.position().x(), step.position().y());
+      hitzy_->Fill(step.position().z(), step.position().y());
+      hitzx_->Fill(step.position().z(), step.position().x());
 
       const double p = step.momentum().mag();
       momentum1_->Fill(p);
