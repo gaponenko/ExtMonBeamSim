@@ -1,0 +1,125 @@
+// Start with the PS enclosure window file, track to ExtMonCommonPlane VD
+//
+// Andrei Gaponenko, 2024
+
+#include "Offline/fcl/minimalMessageService.fcl"
+#include "Offline/fcl/standardProducers.fcl"
+#include "Offline/fcl/standardServices.fcl"
+
+process_name : extMonSignalRoughToPlane
+
+source : { module_type : RootInput }
+
+services : @local::Services.Sim
+
+physics : {
+
+   producers:  {
+      g4run : @local::mu2eg4runDefaultSingleStage
+
+      compressPVCommonPlane: {
+         module_type: "CompressPhysicalVolumes"
+         hitInputs: []
+         particleInputs: [ "CommonPlaneFilter" ]
+         volumesInput: "g4run"
+      }
+   }
+
+   filters: {
+      g4consistent: {
+         module_type: FilterStatusG4
+         input: "g4run"
+         maxAcceptedStatus: 9  #  status 10 and above means StepPointMCCollection may have non-dereferencable pointers
+      }
+
+      CommonPlaneFilter: {
+         module_type: "FilterG4Out"
+         mainHitInputs: [ "g4run:ExtMonCommonPlane" ]
+         extraHitInputs: [ "g4run:virtualdetector" ]
+         vetoDaughters: []
+      }
+
+   }
+
+   analyzers: {
+      genCountLogger: {
+         module_type: GenEventCountReader
+      }
+
+      andrprint: {
+         module_type: SimParticlesPrinter
+         inputCollection: "g4run"
+      }
+   }
+
+   commonplanepath: [g4run, g4consistent, CommonPlaneFilter, compressPVCommonPlane ]
+   e1: [all, commonplaneout, genCountLogger]
+
+   trigger_paths  : [commonplanepath]
+   end_paths      : [e1]
+}
+
+outputs:  {
+   all : {
+      module_type   :   RootOutput
+      fileName      :   "sim.owner.extMonSignalRough-unfiltered.ver.seq.art"
+   }
+   commonplaneout : {
+      module_type   :   RootOutput
+      fileName      :   "sim.owner.extMonSignalRough-commonplane.ver.seq.art"
+      SelectEvents: [ "commonplanepath" ]
+      outputCommands: [
+         "drop *_*_*_*",
+         "keep art::EventIDs_*_*_*",
+         "keep mu2e::GenParticles_*_*_*",
+         "keep mu2e::GenEventCount_*_*_*",
+         "keep mu2e::StatusG4_*_*_*",
+         "keep *_CommonPlaneFilter_*_*",
+         "keep *_compressPVCommonPlane_*_*"
+      ]
+   }
+   dump: { module_type: DataProductDump }
+}
+//================================================================
+//physics.producers.g4run.physics.physicsListName : "ShieldingM"
+//physics.producers.g4run.physics.physicsListName : "QGSP_BERT"
+physics.producers.g4run.physics.physicsListName : "MinDEDX"
+
+physics.producers.g4run.inputs: {
+   primaryType: StepPoints
+   primaryTag: "PSEMonWinFilter:psemonwin"
+   inputMCTrajectories: ""
+   inputPhysVolumeMultiInfo: "compressPVPSEMonWin"
+}
+
+
+physics.producers.g4run.SDConfig: {
+   preSimulatedHits: [ "PSEMonWinFilter:virtualdetector" ]
+   enableSD: [ "virtualdetector" ]
+   TimeVD: { times: [] }
+}
+
+
+physics.producers.g4run.Mu2eG4StackingOnlyCut: {
+   type: notPdgId
+   pars: [ 2212 ]
+}
+physics.producers.g4run.Mu2eG4SteppingOnlyCut: {
+   type: union
+   pars: [
+      {
+         type: inVolume
+         pars: [ "VirtualDetector_ExtMonCommonPlane" ]
+         write: ExtMonCommonPlane
+      }
+   ]
+}
+
+services.GeometryService.inputFile: "ExtMonBeamSim/JobConfig/geom_extmonplane.txt"
+services.TFileService.fileName: "/dev/null"
+
+// allow to use multiple threads
+//physics.producers.g4run.module_type : "Mu2eG4MT"
+
+services.SeedService.baseSeed         :   8
+services.SeedService.maxUniqueEngines :  20
