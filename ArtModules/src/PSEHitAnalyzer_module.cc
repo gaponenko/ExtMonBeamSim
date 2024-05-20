@@ -66,7 +66,7 @@ namespace mu2e {
     , tfs_{art::ServiceHandle<art::TFileService>()}
     , pdgcounts_{compressPDGCodeHisto(tfs_)}
     , ek1_{tfs_->make<TH1D>("ek1", "Proton kinetic energy",170,0.,8500.)}
-    , momentum1_{tfs_->make<TH1D>("momentum1", "Proton momentum",200,0.,10000.)}
+    , momentum1_{tfs_->make<TH1D>("momentum1", "Particle momentum",200,0.,10000.)}
     , hitxy_{tfs_->make<TH2D>("hitxy", "Y vs X of StepPointMC",200,0.,0., 200, 0.,0.)}
   {
     serialize(art::SharedResource<art::TFileService>);
@@ -81,7 +81,9 @@ namespace mu2e {
 
       const double p = step.momentum().mag();
       momentum1_->Fill(p);
-      ek1_->Fill(sqrt(std::pow(proton_mass_,2)+std::pow(p,2)) - proton_mass_);
+      if(PDGCode::proton == step.simParticle()->pdgId()) {
+        ek1_->Fill(sqrt(std::pow(proton_mass_,2)+std::pow(p,2)) - proton_mass_);
+      }
     }
   }
 
