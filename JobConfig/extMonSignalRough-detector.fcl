@@ -49,10 +49,12 @@ physics : {
       andrprint: {
          module_type: SimParticlesPrinter
          inputCollection: "g4run"
+         SelectEvents: [ "detectorpath" ]
       }
    }
 
    detectorpath: [g4run, g4consistent, DetectorFilter, compressPVDetector ]
+   //e1: [detectorout, genCountLogger, andrprint]
    e1: [detectorout, genCountLogger]
 
    trigger_paths  : [detectorpath]
@@ -114,7 +116,14 @@ physics.producers.g4run.Mu2eG4SteppingOnlyCut: {
       ,
       {
          type: inVolume
-         pars: [ "ProtonBeamDumpFront" ]
+         pars: [
+            // speed up
+            "ProtonBeamDumpFront",
+
+            // clean up final events
+            //"ExtMonFNALColl2Shielding" -- this kills everything.  G4 intersection feature?
+            "collimator2AlignmentHole", "collimator2AlignmentPlug"
+         ]
       }
    ]
 }
