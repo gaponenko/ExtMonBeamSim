@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <limits>
 
 #include "cetlib_except/exception.h"
 #include "CLHEP/Vector/ThreeVector.h"
@@ -58,6 +59,7 @@ namespace mu2e {
     TH2D *hitxy_;
     TH2D *hitzy_;
     TH2D *hitzx_;
+    TH2D *hitsxsy_;
   };
 
   //================================================================
@@ -72,6 +74,7 @@ namespace mu2e {
     , hitxy_{tfs_->make<TH2D>("hitxy", "Y vs X of StepPointMC",200,0.,0., 200, 0.,0.)}
     , hitzy_{tfs_->make<TH2D>("hitzy", "Y vs Z of StepPointMC",200,0.,0., 200, 0.,0.)}
     , hitzx_{tfs_->make<TH2D>("hitzx", "X vs Z of StepPointMC",200,0.,0., 200, 0.,0.)}
+    , hitsxsy_{tfs_->make<TH2D>("hitsxsy", "dY/dZ vs dX/dZ of StepPointMC momentum",200,0.,0., 200, 0.,0.)}
   {
     serialize(art::SharedResource<art::TFileService>);
   }
@@ -84,6 +87,14 @@ namespace mu2e {
       hitxy_->Fill(step.position().x(), step.position().y());
       hitzy_->Fill(step.position().z(), step.position().y());
       hitzx_->Fill(step.position().z(), step.position().x());
+
+      // check that we can divide by pz
+      if(std::max(std::abs(step.momentum().x()), std::abs(step.momentum().y()))
+         < std::abs(step.momentum().z())*std::numeric_limits<double>::max())
+        {
+          hitsxsy_->Fill(step.momentum().x()/step.momentum().z(),
+                         step.momentum().y()/step.momentum().z());
+        }
 
       const double p = step.momentum().mag();
       momentum1_->Fill(p);
