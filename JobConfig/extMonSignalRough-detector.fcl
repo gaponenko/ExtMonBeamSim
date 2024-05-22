@@ -53,7 +53,7 @@ physics : {
    }
 
    detectorpath: [g4run, g4consistent, DetectorFilter, compressPVDetector ]
-   e1: [all, detectorout, genCountLogger]
+   e1: [detectorout, genCountLogger]
 
    trigger_paths  : [detectorpath]
    end_paths      : [e1]

@@ -53,7 +53,7 @@ physics : {
    }
 
    commonplanepath: [g4run, g4consistent, CommonPlaneFilter, compressPVCommonPlane ]
-   e1: [all, commonplaneout, genCountLogger]
+   e1: [commonplaneout, genCountLogger]
 
    trigger_paths  : [commonplanepath]
    end_paths      : [e1]
