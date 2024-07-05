@@ -64,7 +64,7 @@ physics : {
    }
 
    signalpath: [genCounter, generate, g4run, g4consistent, SignalFilter, compressPVSignal ]
-   e1: [all, signalout, genCountLogger]
+   e1: [signalout, genCountLogger]
 
    trigger_paths  : [signalpath]
    end_paths      : [e1]
