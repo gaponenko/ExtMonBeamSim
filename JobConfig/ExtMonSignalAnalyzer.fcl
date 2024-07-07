@@ -1,0 +1,27 @@
+#include "Offline/fcl/minimalMessageService.fcl"
+#include "Offline/fcl/standardProducers.fcl"
+#include "Offline/fcl/standardServices.fcl"
+
+process_name : extMonSignalAnalyzer
+
+source : { module_type : RootInput }
+
+services : @local::Services.Reco
+
+physics : {
+
+   analyzers: {
+      genCountLogger: { module_type: GenEventCountReader }
+
+      ema: {
+         module_type: ExtMonSignalAnalyzer
+         inputHits: "SignalFilter:virtualdetector"
+      }
+   }
+
+   e1: [genCountLogger, ema]
+   end_paths      : [e1]
+}
+
+//================================================================
+services.TFileService.fileName: "nts.andr.ExtMonSignalAnalyzer.ver.seq.root"
