@@ -29,6 +29,10 @@
 #include "Offline/GlobalConstantsService/inc/GlobalConstantsHandle.hh"
 #include "Offline/GlobalConstantsService/inc/ParticleDataList.hh"
 
+#include "Offline/GeometryService/inc/GeomHandle.hh"
+#include "Offline/ExtinctionMonitorFNAL/Geometry/inc/ExtMonFNALBuilding.hh"
+
+
 namespace mu2e {
 
   //================================================================
@@ -60,6 +64,7 @@ namespace mu2e {
     using Parameters = art::SharedAnalyzer::Table<Config>;
     explicit ExtMonSignalAnalyzer(const Parameters& conf, const art::ProcessingFrame&);
 
+    void beginRun(const art::Run&, const art::ProcessingFrame&) override;
     void analyze(const art::Event& event, const art::ProcessingFrame&) override;
 
   private:
@@ -73,6 +78,8 @@ namespace mu2e {
     TH2D *entrance_mom_dir_;
     TH1D *coll1out_mom_;
     TH1D *exit_mom_;
+    TH2D *exit_yvsxall_;
+    TH2D *exit_yvsxzoom_;
   };
 
   //================================================================
@@ -92,8 +99,24 @@ namespace mu2e {
     , entrance_mom_dir_{tfs_->make<TH2D>("entrance_mom_dir", "entrance_mom_dir", 200, 0, -1, 200, 0, -1)}
     , coll1out_mom_{tfs_->make<TH1D>("coll1out_mom", "coll1out_mom", 200, 2500., 6000.)}
     , exit_mom_{tfs_->make<TH1D>("exit_mom", "exit_mom", 200, 2500., 6000.)}
+    , exit_yvsxall_{tfs_->make<TH2D>("exit_yvsxall", "exit_yvsx all", 200, 0., -1., 200, 0., -1)}
+    , exit_yvsxzoom_{nullptr}
   {
     serialize(art::SharedResource<art::TFileService>);
+  }
+
+  //================================================================
+  //void ExtMonSignalAnalyzer::beginJob(const art::ProcessingFrame&) {
+  void ExtMonSignalAnalyzer::beginRun(const art::Run&, const art::ProcessingFrame&) {
+    if(!exit_yvsxzoom_) {
+      GeomHandle<ExtMonFNALBuilding> emfb;
+      const auto exitpoint = emfb->filter().exitInMu2e();
+      const double detsize = 40; // mm
+      exit_yvsxzoom_ = tfs_->make<TH2D>("exit_yvsxzoom",
+                                        "exit_yvsx 4 cm x 4 cm",
+                                        40, exitpoint.x()-detsize/2, exitpoint.x()+detsize/2,
+                                        40, exitpoint.y()-detsize/2, exitpoint.y()+detsize/2);
+    }
   }
 
   //================================================================
@@ -119,6 +142,8 @@ namespace mu2e {
 
       if(step.volumeId() == VirtualDetectorId::EMFC2Exit) {
         exit_mom_->Fill(step.momentum().mag());
+        exit_yvsxall_->Fill(step.position().x(), step.position().y());
+        exit_yvsxzoom_->Fill(step.position().x(), step.position().y());
       }
 
     }
