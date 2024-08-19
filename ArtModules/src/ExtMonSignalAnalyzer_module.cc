@@ -103,6 +103,7 @@ namespace mu2e {
     , exit_yvsxzoom_{nullptr}
   {
     serialize(art::SharedResource<art::TFileService>);
+    vdnames_->SetOption("HIST,TEXT");
   }
 
   //================================================================
@@ -116,6 +117,8 @@ namespace mu2e {
                                         "exit_yvsx 4 cm x 4 cm",
                                         40, exitpoint.x()-detsize/2, exitpoint.x()+detsize/2,
                                         40, exitpoint.y()-detsize/2, exitpoint.y()+detsize/2);
+
+      std::cout<<"ExtMonSignalAnalyzer: filter().exitInMu2e() = "<<exitpoint<<std::endl;
     }
   }
 
