@@ -31,6 +31,7 @@
 
 #include "Offline/GeometryService/inc/GeomHandle.hh"
 #include "Offline/ExtinctionMonitorFNAL/Geometry/inc/ExtMonFNALBuilding.hh"
+#include "Offline/ExtinctionMonitorFNAL/Geometry/inc/ExtMonFNAL.hh"
 
 
 namespace mu2e {
@@ -73,6 +74,9 @@ namespace mu2e {
     const double nominalMomentum_;
     const double momentumTolerance_;
     art::ServiceHandle<art::TFileService> tfs_;
+
+    const ExtMonFNAL::ExtMon *extmon_;
+
     TH1D *vdnames_;
     TH1D *entrance_mom_;
     TH2D *entrance_mom_dir_;
@@ -80,6 +84,16 @@ namespace mu2e {
     TH1D *exit_mom_;
     TH2D *exit_yvsxall_;
     TH2D *exit_yvsxzoom_;
+
+    TH2D *det_up_entrance_yvsx_;
+    TH2D *det_dn_exit_yvsx_;
+
+    bool isSignalEvent(const art::Event& evt);
+
+    TH2D *signal_pse_zplane1_yvsx_;
+    TH2D *signal_pse_zplane2_yvsx_;
+
+    TH2D *signal_filter_exit_yvsxall_;
   };
 
   //================================================================
@@ -90,6 +104,7 @@ namespace mu2e {
     , nominalMomentum_{conf().nominalMomentum()}
     , momentumTolerance_{conf().momentumTolerance()}
     , tfs_{art::ServiceHandle<art::TFileService>()}
+    , extmon_{nullptr}
     , vdnames_{
         (TH1::SetDefaultBufferSize(10000), // the comma operator
          tfs_->make<TH1D>("vdnames", "vdnames", 100, 0., -1.)
@@ -101,6 +116,20 @@ namespace mu2e {
     , exit_mom_{tfs_->make<TH1D>("exit_mom", "exit_mom", 200, 2500., 6000.)}
     , exit_yvsxall_{tfs_->make<TH2D>("exit_yvsxall", "exit_yvsx all", 200, 0., -1., 200, 0., -1)}
     , exit_yvsxzoom_{nullptr}
+    , det_up_entrance_yvsx_{tfs_->make<TH2D>("det_up_entrance_yvsx", "Det Up entrance y:x", 80, -40., 40., 80, -40., 40.)}
+    , det_dn_exit_yvsx_{tfs_->make<TH2D>("det_dn_exit_yvsx", "Det Dn exit y:x", 80, -40., 40., 80, -40., 40.)}
+
+      // From Matt Slabaugh: ExtMon window drawing pos =  (-3220.8, 520.4, -9296.4)
+      // window diameter - I did not get a number from Matt.  Will draw R=75 mm (for 6" window diameter)
+    , signal_pse_zplane1_yvsx_{tfs_->make<TH2D>("signal_pse_zplane1_yvsx", "PSE zplane1 y:x, signal",
+                                                200, 3220. - 100., 3220. + 100,
+                                                200, 520. - 100, 520. + 100)}
+    , signal_pse_zplane2_yvsx_{tfs_->make<TH2D>("signal_pse_zplane2_yvsx", "PSE zplane2 y:x, signal",
+                                                200, 3220. - 100., 3220. + 100,
+                                                200, 520. - 100, 520. + 100)
+      }
+
+    , signal_filter_exit_yvsxall_{tfs_->make<TH2D>("signal_filter_exit_yvsxall", "Filter exit y:x, signal", 200, 0., -1., 200, 0., -1)}
   {
     serialize(art::SharedResource<art::TFileService>);
     vdnames_->SetOption("HIST,TEXT");
@@ -109,26 +138,79 @@ namespace mu2e {
   //================================================================
   //void ExtMonSignalAnalyzer::beginJob(const art::ProcessingFrame&) {
   void ExtMonSignalAnalyzer::beginRun(const art::Run&, const art::ProcessingFrame&) {
-    if(!exit_yvsxzoom_) {
+    if(!extmon_) { // initializations delayed from the ctr for the need of geometry
+
+      GeomHandle<ExtMonFNAL::ExtMon> emf;
+      extmon_ = &*emf;
+
       GeomHandle<ExtMonFNALBuilding> emfb;
       const auto exitpoint = emfb->filter().exitInMu2e();
       const double detsize = 40; // mm
+
+      std::cout<<"ExtMonSignalAnalyzer: filter().exitInMu2e() = "<<exitpoint<<std::endl;
       exit_yvsxzoom_ = tfs_->make<TH2D>("exit_yvsxzoom",
                                         "exit_yvsx 4 cm x 4 cm",
                                         40, exitpoint.x()-detsize/2, exitpoint.x()+detsize/2,
                                         40, exitpoint.y()-detsize/2, exitpoint.y()+detsize/2);
 
-      std::cout<<"ExtMonSignalAnalyzer: filter().exitInMu2e() = "<<exitpoint<<std::endl;
     }
+  }
+
+  //================================================================
+  bool ExtMonSignalAnalyzer::isSignalEvent(const art::Event& evt) {
+    auto const steps = evt.getValidHandle<StepPointMCCollection>(inputHits_);
+
+    std::vector<bool> vdaccept = {false, false, false, false};
+
+    for(const auto& step: *steps) {
+
+      if(step.volumeId() == VirtualDetectorId::EMFDetectorUpEntrance) {
+        const auto plocal = extmon_->up().mu2eToStack_position(step.position());
+        if((std::abs(plocal.x()) < 20.) &&(std::abs(plocal.x()) < 20.)) {
+          vdaccept[0] = true;
+        }
+      }
+
+      if(step.volumeId() == VirtualDetectorId::EMFDetectorUpExit) {
+        const auto plocal = extmon_->up().mu2eToStack_position(step.position());
+        if((std::abs(plocal.x()) < 20.) &&(std::abs(plocal.x()) < 20.)) {
+          vdaccept[1] = true;
+        }
+      }
+
+      if(step.volumeId() == VirtualDetectorId::EMFDetectorDnEntrance) {
+        const auto plocal = extmon_->dn().mu2eToStack_position(step.position());
+        if((std::abs(plocal.x()) < 20.) &&(std::abs(plocal.x()) < 20.)) {
+          vdaccept[2] = true;
+        }
+      }
+
+      if(step.volumeId() == VirtualDetectorId::EMFDetectorDnExit) {
+        const auto plocal = extmon_->dn().mu2eToStack_position(step.position());
+        if((std::abs(plocal.x()) < 20.) &&(std::abs(plocal.x()) < 20.)) {
+          vdaccept[3] = true;
+        }
+      }
+
+    }
+
+    bool passed = true;
+    for(auto v: vdaccept) {
+      passed = passed && v;
+    }
+
+    return passed;
   }
 
   //================================================================
   void ExtMonSignalAnalyzer::analyze(const art::Event& evt, const art::ProcessingFrame&) {
     auto const steps = evt.getValidHandle<StepPointMCCollection>(inputHits_);
+
+    const bool signalEvent = isSignalEvent(evt);
+
     for(const auto& step: *steps) {
       const std::string nn{VirtualDetectorId::name(VirtualDetectorId::enum_type(step.volumeId()))};
       vdnames_->Fill(nn.c_str(), 1.);
-
       if(step.volumeId() == VirtualDetectorId::EMFC1Entrance) {
         const double pmag = step.momentum().mag();
         entrance_mom_->Fill(pmag);
@@ -136,6 +218,18 @@ namespace mu2e {
           const double dxdz = step.momentum().x() / step.momentum().z();
           const double dydz = step.momentum().y() / step.momentum().z();
           entrance_mom_dir_->Fill(dxdz, dydz);
+        }
+      }
+
+      if(step.volumeId() == VirtualDetectorId::PSE_zplane1) {
+        if(signalEvent) {
+          signal_pse_zplane1_yvsx_->Fill(step.position().x(), step.position().y());
+        }
+      }
+
+      if(step.volumeId() == VirtualDetectorId::PSE_zplane2) {
+        if(signalEvent) {
+          signal_pse_zplane2_yvsx_->Fill(step.position().x(), step.position().y());
         }
       }
 
@@ -147,6 +241,19 @@ namespace mu2e {
         exit_mom_->Fill(step.momentum().mag());
         exit_yvsxall_->Fill(step.position().x(), step.position().y());
         exit_yvsxzoom_->Fill(step.position().x(), step.position().y());
+
+        if(signalEvent) {
+          signal_filter_exit_yvsxall_->Fill(step.position().x(), step.position().y());
+        }
+      }
+
+      if(step.volumeId() == VirtualDetectorId::EMFDetectorUpEntrance) {
+        const auto plocal = extmon_->up().mu2eToStack_position(step.position());
+        det_up_entrance_yvsx_->Fill(plocal.x(), plocal.y());
+      }
+      if(step.volumeId() == VirtualDetectorId::EMFDetectorDnExit) {
+        const auto plocal = extmon_->dn().mu2eToStack_position(step.position());
+        det_dn_exit_yvsx_->Fill(plocal.x(), plocal.y());
       }
 
     }
