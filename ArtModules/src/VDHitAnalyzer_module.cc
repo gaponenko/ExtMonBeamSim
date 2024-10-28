@@ -41,24 +41,6 @@ namespace mu2e {
   double constexpr hwin_y2 = +750;
 
   //================================================================
-  namespace {
-    class WinCut {
-      double x0_;
-      double y0_;
-      double rCut_;
-    public:
-
-      WinCut(double x, double y, double r) : x0_{x}, y0_{y}, rCut_{r} {}
-
-      bool pass(const StepPointMC& hit) const {
-        return sqrt(std::pow(hit.position().x() - x0_, 2)
-                    +std::pow(hit.position().y() - y0_, 2))
-          < rCut_;
-      }
-    };
-  }
-
-  //================================================================
   class VDHitAnalyzer : public art::SharedAnalyzer {
   public:
     struct Config {
@@ -92,9 +74,6 @@ namespace mu2e {
 
     std::optional<int> selectCharge_;
 
-    WinCut cutdump_;
-    WinCut cutq_;
-
     art::ServiceHandle<art::TFileService> tfs_;
     TH1D *pdgcounts_;
 
@@ -103,15 +82,6 @@ namespace mu2e {
 
     TH2D *hitxyCount_;
     TH2D *hitxyESum_;
-
-
-    TH1D *cutdump_pdgcounts_;
-    TH1D *cutdump_momentum_;
-    TH2D *cutdump_vtxxz_;
-
-    TH1D *cutq_pdgcounts_;
-    TH1D *cutq_momentum_;
-    TH2D *cutq_vtxxz_;
 
     GlobalConstantsHandle<ParticleDataList> pdgList_;
   };
@@ -122,8 +92,6 @@ namespace mu2e {
     , input_{conf().input()}
     , vdId_{conf().vdName()}
     , selectCharge_{conf().selectCharge()}
-    , cutdump_{dumpwin_x0, dumpwin_y0, 150. /* try to get the hot spot by eye, smaller than the window*/}
-    , cutq_{3340., 85., 60. /* all by eye*/}
 
     , tfs_{art::ServiceHandle<art::TFileService>()}
 
@@ -138,15 +106,6 @@ namespace mu2e {
       // Main beam window drawing pos = (-3118.0, 122.8, -9398.0)
     , hitxyCount_{tfs_->make<TH2D>("hitxyCount", "Y vs X of hits, count",200,hwin_x1, hwin_x2, 150, hwin_y1, hwin_y2)}
     , hitxyESum_{tfs_->make<TH2D>("hitxyESum", "Y vs X of hits, kinetic energy sum",200,hwin_x1, hwin_x2, 150, hwin_y1, hwin_y2)}
-
-    , cutdump_pdgcounts_{compressPDGCodeHisto(tfs_, "cutdump_pdgcounts")}
-    , cutdump_momentum_{tfs_->make<TH1D>("cutdump_momentum", "Momentum for cutdump",200,0.,10000.)}
-    , cutdump_vtxxz_{tfs_->make<TH2D>("cutdump_vtxxz", "X vs Z of production vtx, cutdump", 340, -9400., -6000, /*X*/ 1000, 3000., 4000.)}
-
-    , cutq_pdgcounts_{compressPDGCodeHisto(tfs_, "cutq_pdgcounts")}
-    , cutq_momentum_{tfs_->make<TH1D>("cutq_momentum", "Momentum for cutq",200,0.,10000.)}
-    , cutq_vtxxz_{tfs_->make<TH2D>("cutq_vtxxz", "X vs Z of production vtx, cutq", 340, -9400., -6000, /*X*/ 1000, 3000., 4000.)}
-
   {
     serialize(art::SharedResource<art::TFileService>);
 
@@ -161,8 +120,7 @@ namespace mu2e {
   void VDHitAnalyzer::analyze(const art::Event& evt, const art::ProcessingFrame&) {
     auto const steps = evt.getValidHandle<StepPointMCCollection>(input_);
     for(const auto& step: *steps) {
-      //if(step.virtualDetectorId() == vdId_)
-      {
+      if(step.virtualDetectorId() == vdId_) {
         pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
 
         if(!selectCharge_ || (selectCharge_ == pdgList_->particle(step.simParticle()->pdgId()).charge() )) {
@@ -174,36 +132,8 @@ namespace mu2e {
           const double ek = sqrt(std::pow(mass,2)+std::pow(mom,2)) - mass;
           ek1_->Fill(ek);
 
-
           hitxyCount_->Fill(step.position().x(), step.position().y());
           hitxyESum_->Fill(step.position().x(), step.position().y(), ek);
-
-          if(cutdump_.pass(step)) {
-            std::cout<<"AG: cutdump vdId = "<<step.virtualDetectorId()<<std::endl;
-            cutdump_pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
-            cutdump_momentum_->Fill(step.momentum().mag());
-
-            art::Ptr<SimParticle> p = step.simParticle();
-            //std::cout<<"AG: p.isNonnull() = "<<p.isNonnull()<<", ptr = "<<p.get()<<std::endl;
-            while(p) {
-              //std::cout<<"AG: in the loop, ptr = "<<p.get()<<std::endl;
-              cutdump_vtxxz_->Fill(p->startPosition().z(), p->startPosition().x());
-              p = p->parent();
-            }
-          }
-
-          if(cutq_.pass(step)) {
-            std::cout<<"AG: cutq vdId = "<<step.virtualDetectorId()<<std::endl;
-            cutq_pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
-            cutq_momentum_->Fill(step.momentum().mag());
-
-            art::Ptr<SimParticle> p = step.simParticle();
-            while(p) {
-              cutq_vtxxz_->Fill(p->startPosition().z(), p->startPosition().x());
-              p = p->parent();
-            }
-          }
-
         }
       }
     }
