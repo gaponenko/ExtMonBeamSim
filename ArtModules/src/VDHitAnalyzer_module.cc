@@ -107,9 +107,11 @@ namespace mu2e {
 
     TH1D *cutdump_pdgcounts_;
     TH1D *cutdump_momentum_;
+    TH2D *cutdump_vtxxz_;
 
     TH1D *cutq_pdgcounts_;
     TH1D *cutq_momentum_;
+    TH2D *cutq_vtxxz_;
 
     GlobalConstantsHandle<ParticleDataList> pdgList_;
   };
@@ -139,9 +141,11 @@ namespace mu2e {
 
     , cutdump_pdgcounts_{compressPDGCodeHisto(tfs_, "cutdump_pdgcounts")}
     , cutdump_momentum_{tfs_->make<TH1D>("cutdump_momentum", "Momentum for cutdump",200,0.,10000.)}
+    , cutdump_vtxxz_{tfs_->make<TH2D>("cutdump_vtxxz", "X vs Z of production vtx, cutdump", 340, -9400., -6000, /*X*/ 1000, 3000., 4000.)}
 
     , cutq_pdgcounts_{compressPDGCodeHisto(tfs_, "cutq_pdgcounts")}
     , cutq_momentum_{tfs_->make<TH1D>("cutq_momentum", "Momentum for cutq",200,0.,10000.)}
+    , cutq_vtxxz_{tfs_->make<TH2D>("cutq_vtxxz", "X vs Z of production vtx, cutq", 340, -9400., -6000, /*X*/ 1000, 3000., 4000.)}
 
   {
     serialize(art::SharedResource<art::TFileService>);
@@ -157,31 +161,50 @@ namespace mu2e {
   void VDHitAnalyzer::analyze(const art::Event& evt, const art::ProcessingFrame&) {
     auto const steps = evt.getValidHandle<StepPointMCCollection>(input_);
     for(const auto& step: *steps) {
-      pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
+      //if(step.virtualDetectorId() == vdId_)
+      {
+        pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
 
-      if(!selectCharge_ || (selectCharge_ == pdgList_->particle(step.simParticle()->pdgId()).charge() )) {
+        if(!selectCharge_ || (selectCharge_ == pdgList_->particle(step.simParticle()->pdgId()).charge() )) {
 
-        const double mom = step.momentum().mag();
-        momentum1_->Fill(mom);
+          const double mom = step.momentum().mag();
+          momentum1_->Fill(mom);
 
-        const double mass = pdgList_->particle(step.simParticle()->pdgId()).mass();
-        const double ek = sqrt(std::pow(mass,2)+std::pow(mom,2)) - mass;
-        ek1_->Fill(ek);
+          const double mass = pdgList_->particle(step.simParticle()->pdgId()).mass();
+          const double ek = sqrt(std::pow(mass,2)+std::pow(mom,2)) - mass;
+          ek1_->Fill(ek);
 
 
-        hitxyCount_->Fill(step.position().x(), step.position().y());
-        hitxyESum_->Fill(step.position().x(), step.position().y(), ek);
+          hitxyCount_->Fill(step.position().x(), step.position().y());
+          hitxyESum_->Fill(step.position().x(), step.position().y(), ek);
 
-        if(cutdump_.pass(step)) {
-          cutdump_pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
-          cutdump_momentum_->Fill(step.momentum().mag());
+          if(cutdump_.pass(step)) {
+            std::cout<<"AG: cutdump vdId = "<<step.virtualDetectorId()<<std::endl;
+            cutdump_pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
+            cutdump_momentum_->Fill(step.momentum().mag());
+
+            art::Ptr<SimParticle> p = step.simParticle();
+            //std::cout<<"AG: p.isNonnull() = "<<p.isNonnull()<<", ptr = "<<p.get()<<std::endl;
+            while(p) {
+              //std::cout<<"AG: in the loop, ptr = "<<p.get()<<std::endl;
+              cutdump_vtxxz_->Fill(p->startPosition().z(), p->startPosition().x());
+              p = p->parent();
+            }
+          }
+
+          if(cutq_.pass(step)) {
+            std::cout<<"AG: cutq vdId = "<<step.virtualDetectorId()<<std::endl;
+            cutq_pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
+            cutq_momentum_->Fill(step.momentum().mag());
+
+            art::Ptr<SimParticle> p = step.simParticle();
+            while(p) {
+              cutq_vtxxz_->Fill(p->startPosition().z(), p->startPosition().x());
+              p = p->parent();
+            }
+          }
+
         }
-
-        if(cutq_.pass(step)) {
-          cutq_pdgcounts_->Fill(compressPDGCode(step.simParticle()->pdgId()));
-          cutq_momentum_->Fill(step.momentum().mag());
-        }
-
       }
     }
   }
