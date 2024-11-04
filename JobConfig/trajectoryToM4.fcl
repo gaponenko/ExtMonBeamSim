@@ -1,0 +1,78 @@
+#include "Offline/fcl/minimalMessageService.fcl"
+#include "Offline/fcl/standardProducers.fcl"
+#include "Offline/fcl/standardServices.fcl"
+
+process_name : trajectoryToM4
+
+source : { module_type : EmptyEvent  maxEvents : 1 }
+
+services : @local::Services.Sim
+
+physics : {
+
+   producers:  {
+      genCounter: {
+         module_type: GenEventCounter
+      }
+
+      generate: {
+         module_type: ExtMonFNALGun
+         guns: [ {
+               pdgId: -2212 # pbar
+               coneAngleMin: 3.14159265358979323844 # launch it backwards
+               coneAngleMax: 3.14159265358979323844
+               pmin: 8888.88924444444  # Ek = 8 GeV/c^2
+               pmax: 8888.88924444444  # Ek = 8 GeV/c^2
+               reference: productionTargetCenter
+               //reference: productionTargetEntrance
+               offset   : [ 0, 0, 0 ]
+               halfSize : [ 0, 0, 0 ]
+               tmin     : 0
+               tmax     : 0
+               histDirName: ""
+               multiplicity: -1
+            }
+         ]
+      }
+
+      g4run : @local::mu2eg4runDefaultSingleStage
+   }
+
+   filters: {
+      g4consistent: {
+         module_type: FilterStatusG4
+         input: "g4run"
+         maxAcceptedStatus: 9  #  status 10 and above means StepPointMCCollection may have non-dereferencable pointers
+      }
+   }
+
+   analyzers: {
+      genCountLogger: {
+         module_type: GenEventCountReader
+      }
+   }
+
+   p1: [genCounter, generate, g4run, g4consistent ]
+   e1: [genCountLogger]
+
+   trigger_paths  : [p1]
+   end_paths      : [e1]
+}
+
+//================================================================
+physics.producers.g4run.physics.physicsListName: "Minimal" // Disable all physics except transport.
+physics.producers.g4run.physics.bfieldMaxStep: 5. //mm
+physics.producers.g4run.physics.limitStepInAllVolumes: true
+physics.producers.g4run.SDConfig: { enableSD: [] TimeVD: { times: [] } }
+physics.producers.g4run.Mu2eG4SteppingOnlyCut: {
+   type: plane
+   normal: [ 0, 0, 1 ]
+   point: [ 0, 0, 3850 ] // 10+ meters in Z from tgt=(3904,0,-6164.5)
+}
+
+physics.producers.g4run.debug.eventList: [0, 1, 2]
+
+services.TFileService.fileName: "/dev/null"
+
+services.SeedService.baseSeed         :   8
+services.SeedService.maxUniqueEngines :  20
